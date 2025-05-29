@@ -1,0 +1,74 @@
+#Exercise 13.02
+
+#-------------------------------------------------------------
+#(i) Fit a GLM to ALL iris data
+#-------------------------------------------------------------
+
+#(a)
+
+glmodel1 <- glm(Petal.Width~Sepal.Length+Sepal.Width+Petal.Length+Species,data=iris,family=gaussian (link="identity"))
+
+#or could miss out family and link function as they are default
+
+glmodel1 <- glm(Petal.Width~Sepal.Length+Sepal.Width+Petal.Length+Species,data=iris)
+
+#or if we've attached iris we can miss out the data argument
+
+attach(iris)
+glmodel1 <- glm(Petal.Width~Sepal.Length+Sepal.Width+Petal.Length+Species)
+
+#(b)
+
+coef(glmodel1)
+
+#or
+
+glmodel1$coef
+
+#(c)
+
+#It has been absorbed into the 'intercept' coefficient.
+
+#-------------------------------------------------------------
+#(ii) Code for quadratic effect
+#-------------------------------------------------------------
+
+glm(Petal.Width~Sepal.Length+Sepal.Width+Petal.Length+Species+I(Petal.Length^2))
+
+#-------------------------------------------------------------
+#(iii) Fit a GLM to esoph
+#-------------------------------------------------------------
+
+
+glmodel2 <- glm(cbind(ncases,ncontrols) ~ agegp+alcgp+tobgp, data=esoph, family=binomial (link="logit"))
+
+#Since using binomial canonical link function which is the default, same as:
+
+glmodel2 <- glm(cbind(ncases,ncontrols) ~ agegp+alcgp+tobgp, data=esoph, family=binomial)
+
+#or if attach esoph
+
+attach(esoph)
+glmodel2 <- glm(cbind(ncases,ncontrols) ~ agegp+alcgp+tobgp, family=binomial)
+
+glmodel2
+
+
+#-------------------------------------------------------------
+#(iv) Code for interaction
+#-------------------------------------------------------------
+
+#either:
+
+#agegp+alcgp+tobgp+alcgp:tobgp
+
+#ie glm(cbind(ncases,ncontrols) ~ agegp+alcgp+tobgp+alcgp:tobgp, family=binomial)
+
+#or:
+
+#agegp+alcgp*tobgp
+
+#ie glm(cbind(ncases,ncontrols) ~ agegp+alcgp*tobgp, family=binomial)
+
+detach(iris)
+detach(esoph)
