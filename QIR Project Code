@@ -1,0 +1,168 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+
+# Number of policyholders
+N = 1000
+
+# Number of simulations
+SIMULATIONS = 10000
+
+# Quantum-inspired superposition of risk states
+def superposition_risk_states():
+    # Simulate risk probabilities for life, property, market
+    life = np.random.uniform(0.01, 0.2, N)
+    property_risk = np.random.uniform(0.01, 0.15, N)
+    market = np.random.uniform(0.01, 0.1, N)
+
+    # Superposed risk states: not one fixed state until 'collapse'
+    return life, property_risk, market
+
+# Entanglement: health ↔ property dependency
+def entangled_events(life_risk, property_risk):
+    correlation_strength = 0.6
+    entangled_property = property_risk + correlation_strength * (life_risk - np.mean(life_risk))
+    return np.clip(entangled_property, 0, 1)
+
+# Simulate a policyholder's life expectancy wavefunction
+def life_expectancy_wavefunction(mean_age=75, std=10):
+    return np.random.normal(mean_age, std, N)
+
+# Uncertainty principle: trade-off in pricing
+def apply_uncertainty(premium_estimate, risk):
+    # Δprice * Δuncertainty ≥ constant
+    uncertainty_margin = np.random.normal(loc=0.0, scale=risk * 0.1, size=N)
+    return premium_estimate + uncertainty_margin
+
+# Monte Carlo Simulation
+def simulate_portfolio():
+    total_claims = []
+    for _ in range(SIMULATIONS):
+        life_risk, property_risk, market_risk = superposition_risk_states()
+        property_risk_entangled = entangled_events(life_risk, property_risk)
+        life_expectancy = life_expectancy_wavefunction()
+
+        # Risk score combining all components
+        combined_risk = 0.5 * life_risk + 0.3 * property_risk_entangled + 0.2 * market_risk
+
+        # Base premium estimation
+        base_premium = 1000 * combined_risk  # Premium proportional to risk
+        adjusted_premium = apply_uncertainty(base_premium, combined_risk)
+
+        # Determine claim payout (if death or major loss occurs)
+        life_event_triggered = life_expectancy < 70  # collapse event
+        claims = np.where(life_event_triggered, 10000 * combined_risk, 0)
+
+        net_claims = np.sum(claims - adjusted_premium)  # net loss or gain
+        total_claims.append(net_claims)
+
+    return total_claims
+
+# Run simulation
+portfolio_results = simulate_portfolio()
+
+# Results and Visualization
+df_results = pd.DataFrame(portfolio_results, columns=["Net Outcome"])
+print(df_results.describe())
+
+plt.hist(portfolio_results, bins=100, color='skyblue', edgecolor='black')
+plt.title("Quantum-Inspired Insurance Portfolio Simulation")
+plt.xlabel("Net Outcome (Total Claims - Premiums)")
+plt.ylabel("Frequency")
+plt.grid(True)
+plt.show()
+
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import re
+
+from fuzzywuzzy import process  # install with: pip install fuzzywuzzy[speedup]
+
+# --- STEP 1: Load & Clean Unstructured Excel ---
+
+def extract_column(df, keywords, default=None):
+    for col in df.columns:
+        match, score = process.extractOne(col.lower(), keywords)
+        if score > 80:
+            return df[col]
+    return default
+
+def load_policyholder_data(path):
+    df = pd.read_excel(path, sheet_name=0, skiprows=0)  # Adjust skiprows if needed
+
+    # Fuzzy extract key fields
+    age = extract_column(df, ["age", "policyholder age", "client age"])
+    health_score = extract_column(df, ["health", "health score", "medical risk"])
+    property_value = extract_column(df, ["property", "home value", "asset worth"])
+    location = extract_column(df, ["region", "location", "postcode"])
+
+    # Drop rows with missing critical values
+    structured_data = pd.DataFrame({
+        'age': pd.to_numeric(age, errors='coerce'),
+        'health_score': pd.to_numeric(health_score, errors='coerce'),
+        'property_value': pd.to_numeric(property_value, errors='coerce'),
+        'location': location
+    }).dropna()
+
+    return structured_data.reset_index(drop=True)
+
+# --- STEP 2: Risk Functions ---
+
+def entangled_events(life_risk, property_risk):
+    return np.clip(property_risk + 0.6 * (life_risk - np.mean(life_risk)), 0, 1)
+
+def apply_uncertainty(premium_estimate, risk):
+    return premium_estimate + np.random.normal(0, risk * 0.1, len(premium_estimate))
+
+def simulate_from_excel(df, simulations=10000):
+    results = []
+    N = len(df)
+    for _ in range(simulations):
+        # Life expectancy wavefunction based on age
+        life_expectancy = np.random.normal(75 - df['age'], 8)
+
+        # Life risk from health score
+        life_risk = 1 - np.tanh(df['health_score'] / 100)
+
+        # Property risk scaled by property value
+        property_risk = np.clip(df['property_value'] / df['property_value'].max(), 0.01, 1)
+
+        # Market risk randomised
+        market_risk = np.random.uniform(0.01, 0.1, N)
+
+        # Entangled risks
+        property_entangled = entangled_events(life_risk, property_risk)
+
+        # Combined risk
+        combined_risk = 0.5 * life_risk + 0.3 * property_entangled + 0.2 * market_risk
+        base_premium = 1000 * combined_risk
+        adjusted_premium = apply_uncertainty(base_premium, combined_risk)
+
+        # Event collapse (e.g. life event)
+        life_event = life_expectancy < 5  # Death or major illness trigger
+        claim_amount = 10000 * combined_risk
+        claims = np.where(life_event, claim_amount, 0)
+
+        net_result = np.sum(claims - adjusted_premium)
+        results.append(net_result)
+
+    return results
+
+# --- STEP 3: Run Everything ---
+
+excel_path = "path_to_your_excel_file.xlsx"  # Replace with actual file path
+df_cleaned = load_policyholder_data(excel_path)
+simulation_results = simulate_from_excel(df_cleaned)
+
+# --- STEP 4: Show Results ---
+
+plt.hist(simulation_results, bins=100, color='skyblue', edgecolor='black')
+plt.title("Quantum-Inspired Insurance Portfolio Outcome")
+plt.xlabel("Net Gain/Loss (Premiums - Claims)")
+plt.ylabel("Frequency")
+plt.grid(True)
+plt.show()
+
+pd.DataFrame(simulation_results, columns=["Net Outcome"]).describe()
