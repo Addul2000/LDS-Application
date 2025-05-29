@@ -1,0 +1,88 @@
+#Exercise 12.10
+
+#-------------------------------------------------------------
+#(i) Extract 4 measurements of setosa
+#-------------------------------------------------------------
+
+attach(iris)
+
+#We want columns 1 to 4
+
+VDF <- iris[Species=="versicolor",1:4]
+VDF
+
+#-------------------------------------------------------------
+#(ii) Fit a linear regression model
+#-------------------------------------------------------------
+
+model2 <- lm(Petal.Width~Sepal.Length+Sepal.Width+Petal.Length,data=VDF)
+
+#Note that the following code is incorrect as it uses ALL 150 values from original data frame
+
+# model2 <- lm(Petal.Width~Sepal.Length+Sepal.Width+Petal.Length)
+
+#-------------------------------------------------------------
+#(iii) Obtain slope and intercept parameters
+#-------------------------------------------------------------
+
+model2
+
+#alternatively we could get them from the summary function
+
+summary(model2)
+
+#or using the coefficients (coef) function or subset
+
+coef(model2)
+
+model2$coef
+
+#answer: -0.1686, -0.07398, 0.2233, 0.3088 (4 SF)
+
+#-------------------------------------------------------------
+#(iv) Obtain the fitted values
+#-------------------------------------------------------------
+
+#(a)
+
+model2$fitted
+
+#or if you like typing lots
+
+model2$fitted.values
+
+#(b)
+
+fitted(model2)
+
+#or if you like typing lots
+
+fitted.values(model2)
+
+#(c) 
+
+predict(model2)
+
+#answer: 1.4791476, ....., 1.3007574
+
+#-------------------------------------------------------------
+#(v) Predict petal width
+#-------------------------------------------------------------
+
+#(a) from 1st principles 
+
+coef(model2)[1]+coef(model2)[2]*5.1+coef(model2)[3]*3.5+coef(model2)[4]*1.4
+
+#(b) using predict
+
+#Wrap the parameters inside a data frame
+
+newdata2 <-data.frame(Sepal.Length=5.1,Sepal.Width=3.5,Petal.Length=1.4)
+
+#Then we use the 'predict' function
+
+predict(model2,newdata2)
+
+#answer 0.6678075cm
+
+detach(iris)
