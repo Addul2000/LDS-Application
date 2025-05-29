@@ -1,0 +1,300 @@
+import numpy as np
+import time
+import datetime
+import os
+import matplotlib.pyplot as plt
+from skimage.io import imshow, imread                     
+from skimage import data, img_as_float, color
+import cv2 
+from PIL import Image 
+import tk
+from tkinterdnd2 import TkinterDnD, DND_FILES
+import rembg
+
+
+# %% Encyption/decryption
+''' A symmetry cipher to encrypt usernames and passwords '''
+
+alphabet = list("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()-_=+[{]}|;:,<.>\/?")
+alphabet2 = list("UV3\+2Ww?[Y}NKi.A6HfI1P|D,Glpkr]^-B@od$jxRL{aTs%)_v09;c>/g5OX<=7SM*!zqu8ZEmQ&b#eJt4hyn(C:F")
+
+def encrypt(s):
+    for i in range(len(s)):
+        if s[i] in alphabet:
+            index = alphabet.index(s[i])
+            s = s[:i] + alphabet2[index] + s[i+1:]
+    return s
+
+
+def decrypt(s):
+    for i in range(len(s)):
+        if s[i] in alphabet2:
+            index = alphabet2.index(s[i])
+            s = s[:i] + alphabet[index] + s[i+1:]
+    return s
+
+# %% Function to take a photo given a name
+def takePhoto(fileName):
+
+    directory = os.getcwd()
+    dirList = os.listdir(str(directory))
+
+    userDir = user + "Dir"
+    name1 = "white "+fileName
+    name2 = "uv "+fileName
+
+    if os.path.isdir(userDir) == True:
+        print("Saving in Directory: " + userDir)
+    else:
+        print("Creating a new directory called: " + userDir)
+        os.mkdir(userDir)
+
+    fullPath = os.path.dirname(os.path.abspath(__file__)) + "\\" + userDir
+    list = os.listdir(str(fullPath))
+    completePath1 = os.path.join(fullPath, user+".png")
+
+    print("Getting ready to take the photo - make sure your hands are in frame\n")
+    time.sleep(8)
+
+    ## PHOTO TAKING CODE (two photos - make sure they flip hands)
+    """with PiCamera() as mycam:
+        mycam.shutter_speed = 500
+
+    camera = PiCamera()
+    camera.start_preview()
+    time.sleep(5)
+    camera.iso = 900
+    camera.awb_mode = 'tungsten'
+    camera.exposure_mode = 'night'
+    camera.rotation = 180
+    camera.resolution = (1640, 922)
+
+    camera.capture(completePath)"""
+    
+    ##
+
+    print("Photo taken with name: " + name +".png\n")
+    return completePath1, completePath2
+
+# %% Image Analysis
+
+def ImageAnalysis(image):
+
+    im = cv2.imread(image)
+    noBG = rembg.remove(im)
+    
+    left = noBG[0:noBG.shape[0] , int(noBG.shape[1]/2):int(noBG.shape[1])]
+    right = noBG[0:noBG.shape[0] , 0:int(noBG.shape[1]/2)]
+    
+    right_white = (right[:,:,0]>1)
+    left_white = (left[:,:,0]>1)
+    
+    rightF = np.fft.fftshift(np.fft.fft2(right_white))
+    rightF[int((rightF.shape[0]/2)-60):int((rightF.shape[0])/2+60), int((rightF.shape[1]/2)-60):int((rightF.shape[1])/2+60)] = 1
+    outlineR = abs(np.fft.ifft2(rightF))
+    leftF = np.fft.fftshift(np.fft.fft2(left_white))
+    leftF[int((leftF.shape[0]/2)-60):int((leftF.shape[0])/2+60), int((leftF.shape[1]/2)-60):int((leftF.shape[1])/2+60)] = 1
+    outlineL = abs(np.fft.ifft2(leftF))
+    
+    right_hsv = cv2.cvtColor(right, cv2.COLOR_BGR2HSV)
+    RH_lower = right_hsv[:,:,0] > 40
+    RH_upper = right_hsv[:,:,0] < 68
+    RS_lower = right_hsv[:,:,1] > 25
+    RS_upper = right_hsv[:,:,1] < 255
+    RV_lower = right_hsv[:,:,2] > 175
+    RV_upper = right_hsv[:,:,2] < 255
+    maskR = RH_lower * RH_upper * RS_lower * RS_upper * RV_lower * RV_upper
+    RH = right_hsv[:,:,0] * maskR
+    RS = right_hsv[:,:,1] * maskR
+    RV = right_hsv[:,:,2] * maskR
+    right_masked = np.dstack((RH, RS, RV))
+    outputR = rembg.remove(right_masked)
+    
+    left_hsv = cv2.cvtColor(left, cv2.COLOR_BGR2HSV)
+    LH_lower = left_hsv[:,:,0] > 40
+    LH_upper = left_hsv[:,:,0] < 68
+    LS_lower = left_hsv[:,:,1] > 25
+    LS_upper = left_hsv[:,:,1] < 255
+    LV_lower = left_hsv[:,:,2] > 175
+    LV_upper = left_hsv[:,:,2] < 255
+    maskL = LH_lower * LH_upper * LS_lower * LS_upper * LV_lower * LV_upper
+    LH = left_hsv[:,:,0] * maskL
+    LS = left_hsv[:,:,1] * maskL
+    LV = left_hsv[:,:,2] * maskL
+    left_masked = np.dstack((LH, LS, LV))
+    outputL = rembg.remove(left_masked)
+
+    areaBR = np.sum(right_white==0)
+    areaWR = right_white.size - areaBR
+    areaUVBR = np.sum(right_masked==0)/right_masked.shape[2]
+    areaUVR = (right_masked.size/right_masked.shape[2]) - areaUVBR
+    percentage_areaR = round((areaUVR/areaWR)*100, 3)
+    
+    areaBL = np.sum(left_white==0)
+    areaWL = left_white.size - areaBL
+    areaUVBL = np.sum(left_masked==0)/left_masked.shape[2]
+    areaUVL = (left_masked.size/left_masked.shape[2]) - areaUVBL
+    percentage_areaL = round((areaUVL/areaWL)*100, 3)
+    
+    err_avgW = 100
+    err_avgUV = 500
+    pcent_errL = round(np.sqrt(((err_avgW/areaWL)**2)+((err_avgUV/areaUVL)**2))*percentage_areaL, 3)
+    pcent_errR = round(np.sqrt(((err_avgW/areaWR)**2)+((err_avgUV/areaUVR)**2))*percentage_areaR, 3)
+    
+    fig, ax = plt.subplots(1,2,figsize=(8,8), sharex = True, sharey = True)
+    fig.tight_layout(pad = -1.5)
+    ax[0].imshow(outlineR, cmap='gray')
+    ax[0].imshow(outputR)
+    ax[0].set_title('Unwashed area of right hand = {} \u00B1 {}%'.format(percentage_areaR, pcent_errR), fontsize = 9)
+    ax[1].imshow(outlineL, cmap='gray')
+    ax[1].imshow(outputL)
+    ax[1].set_title('Unwashed area of left hand = {} \u00B1 {}%'.format(percentage_areaL, pcent_errL), fontsize = 9)
+    ax[0].set_xticks([])
+    plt.axis('off')
+    plt.show()
+    
+    return percentage_areaR, pcent_errR, percentage_areaL, pcent_errL
+
+
+# %% Outputting the username/password documents (encrypted) - to make sure the file can be read from properly
+
+usernames = open("userDoc.txt", "r")
+usernamesRead = usernames.read()
+userDoc = usernamesRead.split(" ")
+usernames.close()
+
+user = "None"
+attempts = 3
+
+# %% Login system 
+''' A login system in which users can log into an old account, 
+with three attempts at correctly guessing the username/password '''
+
+welcomeMessage = input("Hi user! \n  Have you used this lightbox before? (Y/N)\n").lower()
+while welcomeMessage != "n" and welcomeMessage != "y" and welcomeMessage != "skip":
+    print("Please respond in the valid format\n")
+    welcomeMessage = input("Have you used this lightbox before? (Y/N)\n").lower()
+
+if welcomeMessage == "y":
+    usernames = open("userDoc.txt", "r")
+    passwords = open("passDoc.txt", "r")
+    passwordsRead = passwords.read()
+    usernamesRead = usernames.read()
+    passDoc = passwordsRead.split(" ")
+    userDoc = usernamesRead.split(" ")
+    usernames.close()
+    passwords.close()
+    while attempts > 0:
+        username = (encrypt((input("Please enter your username:\n ")).lower()))
+        if username not in userDoc:
+            keepTryingUser = input("Username is not valid, would you like to try again? (Y/N)\n").lower()
+            while keepTryingUser != "n" and keepTryingUser != "y":
+                keepTryingUser = input("Please respond in the valid format, (Y/N)\n").lower()
+            if keepTryingUser == "n":
+                raise Exception("We hope to see you again soon!\n")
+            elif keepTryingUser == "y":
+                attempts -= 1
+                if attempts == 0:
+                    raise Exception("Too many attempt, we hope to see you again soon!\n")
+                print("You have ",attempts," attempts left.\n")
+        else:
+            print("Valid username \n")
+            index = userDoc.index(username)
+            attempts = 3
+            while attempts > 0:
+                password = encrypt(input("Please enter your password: \n"),)
+                if password != passDoc[index]:
+                    keepTryingPass = input("Password is not correct, would you like to try again? (Y/N)\n").lower()
+                    while keepTryingPass != "n" and keepTryingPass != "y":
+                        keepTryingPass = input("Please respond in the valid format, (Y/N)\n").lower()
+                    if keepTryingPass == "n":
+                        raise Exception("We hope to see you again soon!\n")
+                    elif keepTryingPass == "y":
+                        attempts -= 1
+                        if attempts == 0:
+                            raise Exception("Too many attempt, we hope to see you again soon!\n")
+                        print("You have ",attempts," attempts left.\n")
+                else:
+                    user = decrypt(username)
+                    print("Login successful! \nWelcome back,", user, "\n")
+                    attempts = 0
+
+    ''' Allowing new users to add themselves to the database '''
+
+elif welcomeMessage == "n":
+    usernames = open("userDoc.txt", "a+")
+    passwords = open("passDoc.txt", "a+")
+    passwordsRead = passwords.read()
+    usernamesRead = usernames.read()
+    passDoc = passwordsRead.split(" ")
+    userDoc = usernamesRead.split(" ")
+    accCreation = input("Would you like to create an account? (Y/N)\n").lower()
+    if accCreation != "y" and accCreation != "n":
+        print("Please respond in the valid format\n")
+        accCreation = input("Would you like to create an account? (Y/N)\n").lower()
+    elif accCreation == "n":
+        raise Exception("We hope to see you again soon!\n")
+    else:
+        username = encrypt((input("Please enter your username:\n ").lower()))
+        password = encrypt(input("Please enter your password: \n"))
+        passCheck = encrypt(input("Please confirm your password: \n"))
+        while password != passCheck:
+            print("Passwords do not match")
+            password = encrypt(input("Please enter your password: \n"))
+            passCheck = encrypt(input("Please confirm your password: \n"))
+
+        passwords.write(password + " ")
+        usernames.write(username + " ")
+        user = decrypt(username)
+        print("Login successful! \nWelcome,", user, "\n")
+        passwords.close()
+        usernames.close()
+
+else:
+    user = "admin"
+
+# %% (Purpose of login)
+'''Now the user has logged in and should be asked whether they'd like to review their results 
+or take a new photo - if they're taking a photo they should be walked through the procedure '''
+
+purpose = input("What is the purpose of your login today? \nRespond 1 to take a new measurment \nRespond 2 to exit\n")
+while purpose != '1' and purpose != '2':
+    print("Please respond in the valid format\n")
+    purpose = input("What is the purpose of your login today? \nRespond 1 to take a new measurment \nRespond 2 to exit\n")
+
+
+while purpose != "2":
+
+    if purpose == "1":
+        Date = datetime.datetime.now().date()
+        fileName = user + " " + str(Date)
+        input("Press any key once the cream has been applied and has dried\n")
+
+        Pic1, Pic2 = takePhoto("white " + fileName) 
+
+        L1, L1Err, R1, R1Err= ImageAnalysis(Pic1)
+        L2, L2Err, R2, R2Err = ImageAnalysis(Pic2)
+        weakness = input("Please input the number corresponding to the most contaminated area (if any) of the hand.\n\n 1. Nails\n2. Fingers\n3. Between fingers\n4. Back of the hand\n5. Wrist\n6. Palm\n7. No speciifc weakness")
+        handAreas = ["Nails", "Fingers", "Between fingers", "Back of the hand", "Wrist", "Palm", "No specific weakness"]
+        
+        if weakness != "1" and weakness != "2" and weakness != "3" and weakness != "4" and weakness != "5" and weakness != "6" and weakness != "7":
+            weakness = "7"
+        weakness = handAreas[int(weakness)]
+        
+        userDir = user + "Dir"
+        fullPath = os.path.dirname(os.path.abspath(__file__)) + "\\" + userDir
+        list = os.listdir(str(fullPath))
+        completePath = os.path.join(fullPath, user + " " + str(Date)+".txt")
+
+        file = open(completePath, "w")
+        file.write("Unwashed area (left back):" + L1 + " +- " + L1Err + "% \nUnwashed area (right back):" + R1 + " +- " + R1Err + "% " "Unwashed area (left palm):" + L2 + " +- " + L2Err + "% \nUnwashed area (right palm):" + R2 + " +- " + R2Err + "% \nWeakness:" + weakness)
+        file.close()
+    
+    print("Back to Menu\n")
+    purpose = input("Respond 1 to take a new measurment  \nRespond 2 to exit\n")
+    while purpose != '1' and purpose != '2':
+        print("Please respond in the valid format\n")
+        purpose = input("Respond 1 to take a new measurment \nRespond 2 to exit\n")
+
+
+print("Thank you for using this lightbox, logging you out now.")
