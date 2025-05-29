@@ -1,0 +1,204 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# # <center>L2 Computational Physics</center>
+# ---
+# 
+# ## Random Walks
+# 
+# This assignment will look at some properties of random walks.
+
+# In[31]:
+
+
+import numpy
+from matplotlib import pyplot as plt 
+
+
+# To do our work we will implement a walker class. When initialised a list of possible steps is populated. In one dimension it is
+# 
+# [+s] , [-s] 
+# 
+# where s is the step size, it defaults to 1 but can be set as an argument in the constructor. In two dimensions the steps list contains
+# 
+# [ +s , 0 ] , [ -s , 0 ] ,  [ 0 , +s ] , [ 0 , -s ]
+# 
+# At each step the current position of the walker, saved in `self.pos`, is updated by adding one of the possible steps. The function `pickStep` chooses randomly one of the possible steps. Use this function to implement the `doSteps` function that performs `n` steps and returns a `(n+1) x ndim` array representing the trajectory of the walker, including the starting point. 
+
+# In[32]:
+
+
+class walker:
+    def __init__(self,x0,ndim=1, step_size=1.0):
+        self.pos=x0
+        self.ndim=ndim
+        self.possibleSteps=[]
+        for i in range(ndim):
+            step=numpy.zeros(ndim)
+            step[i]= - step_size
+            self.possibleSteps.append(numpy.array(step,dtype='f'))
+            step[i]= + step_size
+            self.possibleSteps.append(step.copy())
+        self.npossible=len(self.possibleSteps)
+
+    def pickStep(self):
+        istep = numpy.random.choice(range(self.npossible))
+        return self.possibleSteps[istep]
+        
+    def doSteps(self,n):
+        positions=numpy.ndarray((n+1,self.ndim),dtype='f')
+        # YOUR CODE HERE
+        positions[0] = self.pos
+        for i in range(n):
+            step = self.pickStep()
+            self.pos += step
+            positions[i+1] = self.pos
+        return positions
+
+
+# In[33]:
+
+
+# this test is worth 2 marks
+numpy.random.seed(1111)
+w = walker(numpy.zeros(1))
+pos_test = w.doSteps(10)
+reference = [[ 0.], [-1.], [ 0.], [ 1.], [ 2.], [ 1.], [ 0.], [-1.], [-2.], [-3.], [-4.]]
+assert len(pos_test)==11
+# plots to help debugging
+plt.plot(range(11),pos_test, label='your trajectory')
+plt.plot(range(11),reference,'o', label='reference points')
+plt.legend()
+plt.xlabel('step number')
+assert (pos_test == reference).all()
+
+
+# In[34]:
+
+
+# this test is worth 5 marks
+numpy.random.seed(1112)
+w = walker(numpy.zeros(2), ndim=2)
+pos_test = w.doSteps(10)
+reference = numpy.array([[ 0.,  0.], [-1.,  0.], [-1., -1.], [-2., -1.], 
+             [-2.,  0.], [-2.,  1.], [-1.,  1.], [-1.,  2.], 
+             [ 0.,  2.], [ 1.,  2.], [ 0.,  2.]])
+assert pos_test.shape == (11,2)
+# plots to help debugging
+plt.plot(pos_test[:,0], pos_test[:,1],'-o', label='your trajectory')
+plt.plot(reference[:,0],reference[:,1],'o', label='reference points')
+plt.legend()
+assert (pos_test == reference).all()
+
+
+# This is a plot to visualise trajectories. Use it to convince yourself that you get different trajectories.
+
+# In[35]:
+
+
+nsteps = 100
+for i in range(10):
+    w = walker(numpy.zeros(1))
+    ys = w.doSteps(nsteps)
+    plt.plot(range(nsteps+1),ys)
+
+
+# **Task 1**
+# 
+# Make a plot of average position and average squared position of 100 1D walkers using 1000 steps. Your plot needs a legend, title and labels. [5 marks]
+# 
+
+# In[36]:
+
+
+nsteps = 1000
+ndim = 1
+nwalkers = 100
+
+walkers = [walker(numpy.zeros(ndim)) for i in range(nwalkers)]
+
+positions = numpy.zeros((nwalkers, nsteps+1, ndim))
+positions_squared = numpy.zeros((nwalkers, nsteps+1, ndim))
+
+for i in range(nwalkers):
+    positions[i] = walkers[i].doSteps(nsteps)
+    positions_squared[i] = positions[i]**2
+
+avg_position = numpy.mean(positions, axis=0)
+avg_position_squared = numpy.mean(positions_squared, axis=0)
+
+x = numpy.arange(nsteps+1)
+plt.plot(x, avg_position, label='Average Position')
+plt.plot(x, avg_position_squared, label='Average Squared Position')
+plt.xlabel('Number of Steps')
+plt.ylabel('Position')
+plt.title('Average Position and Average Squared Position of 100 1D Walkers with 1000 Steps')
+plt.legend()
+plt.show()
+
+
+# **Task 2**
+# 
+# Make a plot to show that the average squared distance scaling is independent of the dimension in which the walker moves. Use 100 steps and 400 walkers and use $D=1,2,3,4$. The plot should have a title, legend and labels. [5 marks]
+# 
+
+# In[37]:
+
+
+nsteps = 100
+nwalkers = 400
+dimensions = range(1, 5)
+step_size = 1.0
+
+positions_squared = numpy.zeros((len(dimensions), nwalkers, nsteps+1))
+
+for d, ndim in enumerate(dimensions):
+    walkers = [walker(numpy.zeros(ndim), ndim, step_size) for i in range(nwalkers)]
+    for i in range(nwalkers):
+        positions = walkers[i].doSteps(nsteps)
+        positions_squared[d][i] = numpy.sum(positions**2, axis=1)
+
+avg_position_squared = numpy.mean(positions_squared, axis=1)
+
+x = numpy.arange(nsteps+1)
+for d, ndim in enumerate(dimensions):
+    plt.plot(x, avg_position_squared[d], label=f'Dimension = {ndim}')
+plt.xlabel('Number of Steps')
+plt.ylabel('Average Squared Distance')
+plt.title('Average Squared Distance of 400 Walkers with Different Dimensions and 100 Steps')
+plt.legend()
+plt.show()
+
+
+# ## 2D walkers
+
+# Use 1000 walkers randomly distributed in the unit square (the positions are given in the array `rand_pos`) simulate the diffusion of particles with step size 0.05. Make a plot of the position of the walkers after 10, 100 and 500 steps. The plots should have labels and titles.
+# 
+# Tip: Use `plt.scatter` and consider using its `alpha` option to make you plot look nicer. [6 marks]
+# 
+
+# In[38]:
+
+
+ndim = 2
+nwalkers = 500
+
+rand_pos = numpy.random.uniform(size=(nwalkers, ndim))
+
+step_size = 0.05
+
+plt.figure(figsize=(18,6))
+for i, nsteps in enumerate([10, 100, 500]):
+    plt.subplot(131+i)
+    plt.xlim((-3, 4))
+    plt.ylim((-3, 4))
+    plt.title("After {} Steps".format(nsteps))
+    for j in range(nwalkers):
+        w = walker(rand_pos[j], ndim, step_size)
+        positions = w.doSteps(nsteps)
+        plt.scatter(positions[-1][0], positions[-1][1], alpha=0.2)
+    plt.xlabel("x")
+    plt.ylabel("y")
+plt.suptitle("Diffusion of 500 particles with step size 0.05")
+plt.show()
+
